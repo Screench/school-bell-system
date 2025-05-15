@@ -1,13 +1,81 @@
 const express = require('express');
 const { exec } = require('child_process');
 const fs = require('fs');
+const path = require('path');
 const schedule = require('node-schedule');
 
 const app = express();
 const port = 3000;
 
+// Ensure directories exist
+if (!fs.existsSync('sounds')) {
+  fs.mkdirSync('sounds');
+}
+
+// Initialize default schedule if doesn't exist
+if (!fs.existsSync('schedule.json')) {
+  fs.writeFileSync('schedule.json', JSON.stringify({
+    enabled: true,
+    enabledOnSaturday: false,
+    enabledOnSunday: false,
+    events: [{
+      name: '',
+      time: '08:00',
+      sound: 'test_bell.wav'
+    }]
+  }, null, 2));
+}
+
 // Load schedule
-const bellSchedule = JSON.parse(fs.readFileSync('schedule.json'));
+let bellSchedule;
+try {
+  bellSchedule = JSON.parse(fs.readFileSync('schedule.json'));
+} catch (err) {
+  console.error('Error loading schedule:', err);
+  process.exit(1);
+}
+
+// Clear existing schedule jobs
+function clearSchedule() {
+  for (const job in schedule.scheduledJobs) {
+    schedule.scheduledJobs[job].cancel();
+  }
+}
+
+// Schedule all events
+function scheduleEvents() {
+  if (!bellSchedule.enabled) return;
+
+  bellSchedule.events.forEach(event => {
+    const [hour, minute] = event.time.split(':').map(Number);
+    
+    const rule = new schedule.RecurrenceRule();
+    rule.hour = hour;
+    rule.minute = minute;
+    rule.second = 0;
+    
+    // Set day of week restrictions
+    rule.dayOfWeek = [new schedule.Range(0, 4)]; // Monday to Friday by default
+    
+    if (bellSchedule.enabledOnSaturday) {
+      rule.dayOfWeek.push(5); // Add Saturday
+    }
+    
+    if (bellSchedule.enabledOnSunday) {
+      rule.dayOfWeek.push(6); // Add Sunday
+    }
+
+    schedule.scheduleJob(rule, () => {
+      const today = new Date();
+      console.log(`Bell time! ${event.time} -> Playing ${event.sound}`);
+      playSound(event.sound).catch(console.error);
+    });
+  });
+}
+
+// Initial scheduling
+clearSchedule();
+scheduleEvents();
 
 // Play sound function (uses ALSA)
 function playSound(file) {
@@ -24,18 +92,203 @@ function playSound(file) {
   });
 }
 
-// Schedule all events
-bellSchedule.events.forEach(event => {
-  const [hour, minute] = event.time.split(':').map(Number);
-  schedule.scheduleJob({ hour, minute, second: 0 }, () => {
-    console.log(`Bell time! ${event.time} -> Playing ${event.sound}`);
-    playSound(event.sound).catch(console.error);
-  });
-});
+// Get list of sound files
+function getSoundFiles() {
+  try {
+    return fs.readdirSync('sounds').filter(file => 
+      file.endsWith('.wav') || file.endsWith('.mp3')
+    );
+  } catch (err) {
+    console.error('Error reading sounds directory:', err);
+    return [];
+  }
+}
 
 // Web interface
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
 app.get('/', (req, res) => {
-  res.send('School Bell System - Running!');
+  const soundFiles = getSoundFiles();
+  
+  let eventsHtml = '';
+  bellSchedule.events.forEach((event, index) => {
+    let soundOptions = '';
+    soundFiles.forEach(file => {
+      soundOptions += `<option value="${file}" ${event.sound === file ? 'selected' : ''}>${file}</option>`;
+    });
+    
+    eventsHtml += `
+    <tr data-index="${index}">
+      <td><input type="text" name="events[${index}][name]" value="${event.name || ''}"></td>
+      <td><input type="time" name="events[${index}][time]" value="${event.time || '08:00'}"></td>
+      <td>
+        <select name="events[${index}][sound]">
+          ${soundOptions}
+        </select>
+      </td>
+      <td>
+        <button type="button" class="add-row">Add</button>
+        <button type="button" class="delete-row">Delete</button>
+      </td>
+    </tr>
+    `;
+  });
+
+  const html = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <title>School Bell System</title>
+    <script>
+      function addRow(index) {
+        const table = document.querySelector('table');
+        const row = table.rows[index + 1]; // +1 to skip header
+        const newRow = row.cloneNode(true);
+
+        // Clear values in the new row
+        newRow.querySelectorAll('input').forEach(input => input.value = '');
+        newRow.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
+
+        row.after(newRow); // Use after() to always insert after the current row
+        updateRowIndexes();
+      }
+      
+      function deleteRow(index) {
+        if (document.querySelectorAll('table tr').length <= 2) return; // Don't delete last row
+        const row = document.querySelector(\`tr[data-index="\${index}"]\`);
+        row.parentNode.removeChild(row);
+        updateRowIndexes();
+      }
+      
+      function updateRowIndexes() {
+        const rows = document.querySelectorAll('table tr:not(:first-child)');
+        rows.forEach((row, index) => {
+          row.setAttribute('data-index', index);
+          const inputs = row.querySelectorAll('input, select');
+          inputs.forEach(input => {
+            input.name = input.name.replace(/events\\[\\d+\\]/g, \`events[\${index}]\`);
+          });
+          row.querySelector('.add-row').onclick = () => addRow(index);
+          row.querySelector('.delete-row').onclick = () => deleteRow(index);
+        });
+      }
+      
+      document.addEventListener('DOMContentLoaded', function() {
+        const buttons = document.querySelectorAll('.add-row, .delete-row');
+        buttons.forEach(button => {
+          button.onclick = function() {
+            const row = this.closest('tr');
+            const index = parseInt(row.getAttribute('data-index'));
+            if (this.classList.contains('add-row')) {
+              addRow(index);
+            } else {
+              deleteRow(index);
+            }
+          };
+        });
+        
+        document.querySelector('form').onsubmit = function(e) {
+          e.preventDefault();
+          const formData = new FormData(this);
+          const data = {
+            enabled: formData.get('enabled') === 'on',
+            enabledOnSaturday: formData.get('enabledOnSaturday') === 'on',
+            enabledOnSunday: formData.get('enabledOnSunday') === 'on',
+            events: []
+          };
+          
+          const timeInputs = document.querySelectorAll('input[name^="events"][name$="[time]"]');
+          timeInputs.forEach((input, index) => {
+            const name = document.querySelector(\`input[name="events[\${index}][name]"]\`).value;
+            const time = input.value;
+            const sound = document.querySelector(\`select[name="events[\${index}][sound]"]\`).value;
+            data.events.push({ name, time, sound });
+          });
+          
+          fetch('/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          })
+          .then(response => response.text())
+          .then(message => alert(message))
+          .catch(error => alert('Error: ' + error));
+        };
+      });
+    </script>
+  </head>
+  <body>
+    <h1>School Bell System</h1>
+    <form>
+      <h2>Main Schedule</h2>
+      <table>
+        <tr>
+          <th>Name</th>
+          <th>Time</th>
+          <th>Sound</th>
+          <th>Actions</th>
+        </tr>
+        ${eventsHtml}
+      </table>
+      
+      <h2>Settings</h2>
+      <div>
+        <input type="checkbox" name="enabled" id="enabled" ${bellSchedule.enabled ? 'checked' : ''}>
+        <label for="enabled">Enable Schedule</label>
+      </div>
+      <div>
+        <input type="checkbox" name="enabledOnSaturday" id="enabledOnSaturday" ${bellSchedule.enabledOnSaturday ? 'checked' : ''}>
+        <label for="enabledOnSaturday">Enable Schedule on Saturdays</label>
+      </div>
+      <div>
+        <input type="checkbox" name="enabledOnSunday" id="enabledOnSunday" ${bellSchedule.enabledOnSunday ? 'checked' : ''}>
+        <label for="enabledOnSunday">Enable Schedule on Sundays</label>
+      </div>
+      
+      <button type="submit">Save schedule and settings</button>
+    </form>
+  </body>
+  </html>
+  `;
+  
+  res.send(html);
+});
+
+// Handle form submission
+app.post('/', (req, res) => {
+  try {
+    const newSchedule = {
+      enabled: req.body.enabled,
+      enabledOnSaturday: req.body.enabledOnSaturday,
+      enabledOnSunday: req.body.enabledOnSunday,
+      events: req.body.events || []
+    };
+    
+    // Filter out empty time entries
+    newSchedule.events = newSchedule.events.filter(event => event.time);
+    
+    // If no events, add one empty row
+    if (newSchedule.events.length === 0) {
+      newSchedule.events.push({
+        name: '',
+        time: '08:00',
+        sound: getSoundFiles()[0] || 'test_bell.wav'
+      });
+    }
+    
+    fs.writeFileSync('schedule.json', JSON.stringify(newSchedule, null, 2));
+    bellSchedule = newSchedule;
+    
+    // Reschedule events
+    clearSchedule();
+    scheduleEvents();
+    
+    res.send('Schedule saved successfully!');
+  } catch (err) {
+    console.error('Error saving schedule:', err);
+    res.status(500).send('Error saving schedule');
+  }
 });
 
 // Test sound endpoint
