@@ -8,122 +8,95 @@ const upload = multer({ dest: 'sounds/' });
 
 const app = express();
 const port = 3000;
+const SCHEDULE_FILE = 'schedule.json';
+const SOUNDS_DIR = 'sounds';
 
-// Ensure directories exist
-if (!fs.existsSync('sounds')) {
-  fs.mkdirSync('sounds');
-}
-
-// Initialize default schedule if doesn't exist
-if (!fs.existsSync('schedule.json')) {
-  fs.writeFileSync('schedule.json', JSON.stringify({
+// Ensure directories and files exist
+if (!fs.existsSync(SOUNDS_DIR)) fs.mkdirSync(SOUNDS_DIR);
+if (!fs.existsSync(SCHEDULE_FILE)) {
+  fs.writeFileSync(SCHEDULE_FILE, JSON.stringify({
     enabled: true,
     enabledOnSaturday: false,
     enabledOnSunday: false,
-    events: [{
-      name: '',
-      time: '08:00',
-      sound: 'test_bell.wav'
-    }]
+    events: [{ name: '', time: '08:00', sound: 'test_bell.wav' }]
   }, null, 2));
 }
 
-// Load schedule
-let bellSchedule;
-try {
-  bellSchedule = JSON.parse(fs.readFileSync('schedule.json'));
-} catch (err) {
-  console.error('Error loading schedule:', err);
-  process.exit(1);
-}
-
-// Clear existing schedule jobs
-function clearSchedule() {
-  for (const job in schedule.scheduledJobs) {
-    schedule.scheduledJobs[job].cancel();
+// Utility functions
+const getSoundFiles = () => {
+  try {
+    return fs.readdirSync(SOUNDS_DIR).filter(f => f.endsWith('.wav') || f.endsWith('.mp3'));
+  } catch (e) {
+    console.error('Error reading sounds directory:', e);
+    return [];
   }
-}
+};
 
-// Schedule all events
-function scheduleEvents() {
+const loadSchedule = () => {
+  try {
+    return JSON.parse(fs.readFileSync(SCHEDULE_FILE));
+  } catch (e) {
+    console.error('Error loading schedule:', e);
+    process.exit(1);
+  }
+};
+
+const saveSchedule = scheduleObj => {
+  fs.writeFileSync(SCHEDULE_FILE, JSON.stringify(scheduleObj, null, 2));
+};
+
+const playSound = file =>
+  new Promise((resolve, reject) => {
+    exec(`aplay -D hw:0,0 -f S16_LE -r 44100 ./sounds/${file}`, (err, stdout, stderr) => {
+      if (err) reject(stderr);
+      else resolve(stdout);
+    });
+  });
+
+// Scheduling
+let bellSchedule = loadSchedule();
+
+const clearSchedule = () => {
+  Object.values(schedule.scheduledJobs).forEach(job => job.cancel());
+};
+
+const scheduleEvents = () => {
   if (!bellSchedule.enabled) return;
-
   bellSchedule.events.forEach(event => {
     const [hour, minute] = event.time.split(':').map(Number);
-    
     const rule = new schedule.RecurrenceRule();
     rule.hour = hour;
     rule.minute = minute;
     rule.second = 0;
-    
-    // Set day of week restrictions
-    rule.dayOfWeek = [new schedule.Range(0, 4)]; // Monday to Friday by default
-    
-    if (bellSchedule.enabledOnSaturday) {
-      rule.dayOfWeek.push(5); // Add Saturday
-    }
-    
-    if (bellSchedule.enabledOnSunday) {
-      rule.dayOfWeek.push(6); // Add Sunday
-    }
-
+    rule.dayOfWeek = [0, 1, 2, 3, 4]; // Mon-Fri
+    if (bellSchedule.enabledOnSaturday) rule.dayOfWeek.push(5);
+    if (bellSchedule.enabledOnSunday) rule.dayOfWeek.push(6);
     schedule.scheduleJob(rule, () => {
-      const today = new Date();
       console.log(`Bell time! ${event.time} -> Playing ${event.sound}`);
       playSound(event.sound).catch(console.error);
     });
   });
-}
+};
 
-// Initial scheduling
 clearSchedule();
 scheduleEvents();
 
-// Play sound function (uses ALSA)
-function playSound(file) {
-  return new Promise((resolve, reject) => {
-    exec(`aplay -D hw:0,0 -f S16_LE -r 44100 ./sounds/${file}`, (err, stdout, stderr) => {
-      if (err) {
-        console.error("Audio error:", stderr);
-        reject(stderr);
-      } else {
-        console.log("Played sound:", file);
-        resolve(stdout);
-      }
-    });
-  });
-}
-
-// Get list of sound files
-function getSoundFiles() {
-  try {
-    return fs.readdirSync('sounds').filter(file => 
-      file.endsWith('.wav') || file.endsWith('.mp3')
-    );
-  } catch (err) {
-    console.error('Error reading sounds directory:', err);
-    return [];
-  }
-}
-
-// Web interface
+// Middleware
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// Upload sound file
+// Sound file endpoints
 app.post('/upload-sound', upload.single('soundFile'), (req, res) => {
   if (!req.file) return res.status(400).send('No file uploaded');
-  const ext = path.extname(req.file.originalname);
-  const newPath = path.join('sounds', req.file.originalname);
+  const newPath = path.join(SOUNDS_DIR, req.file.originalname);
   fs.renameSync(req.file.path, newPath);
   res.redirect('/');
 });
 
-// Delete sound file
 app.post('/delete-sound', express.urlencoded({ extended: true }), (req, res) => {
   const file = req.body.file;
   if (!file) return res.status(400).send('No file specified');
-  const filePath = path.join('sounds', file);
+  const filePath = path.join(SOUNDS_DIR, file);
   if (fs.existsSync(filePath)) {
     fs.unlinkSync(filePath);
     res.sendStatus(200);
@@ -132,7 +105,6 @@ app.post('/delete-sound', express.urlencoded({ extended: true }), (req, res) => 
   }
 });
 
-// Play sound file (manual trigger)
 app.get('/play-sound', (req, res) => {
   const file = req.query.file;
   if (!file) return res.status(400).send('No file specified');
@@ -141,23 +113,17 @@ app.get('/play-sound', (req, res) => {
     .catch(() => res.status(500).send('Failed to play sound'));
 });
 
+// Main page
 app.get('/', (req, res) => {
+  bellSchedule = loadSchedule();
   const soundFiles = getSoundFiles();
-  
-  let eventsHtml = '';
-  bellSchedule.events.forEach((event, index) => {
-    let soundOptions = '';
-    soundFiles.forEach(file => {
-      soundOptions += `<option value="${file}" ${event.sound === file ? 'selected' : ''}>${file}</option>`;
-    });
-    
-    eventsHtml += `
+  const eventsHtml = bellSchedule.events.map((event, index) => `
     <tr data-index="${index}">
       <td><input type="text" name="events[${index}][name]" value="${event.name || ''}"></td>
       <td><input type="time" name="events[${index}][time]" value="${event.time || '08:00'}"></td>
       <td>
         <select name="events[${index}][sound]">
-          ${soundOptions}
+          ${soundFiles.map(file => `<option value="${file}" ${event.sound === file ? 'selected' : ''}>${file}</option>`).join('')}
         </select>
       </td>
       <td>
@@ -165,10 +131,9 @@ app.get('/', (req, res) => {
         <button type="button" class="delete-row">Delete</button>
       </td>
     </tr>
-    `;
-  });
+  `).join('');
 
-  const html = `
+  res.send(`
   <!DOCTYPE html>
   <html>
   <head>
@@ -176,30 +141,24 @@ app.get('/', (req, res) => {
     <script>
       function addRow(index) {
         const table = document.querySelector('table');
-        const row = table.rows[index + 1]; // +1 to skip header
+        const row = table.rows[index + 1];
         const newRow = row.cloneNode(true);
-
-        // Clear values in the new row
         newRow.querySelectorAll('input').forEach(input => input.value = '');
         newRow.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
-
-        row.after(newRow); // Use after() to always insert after the current row
+        row.after(newRow);
         updateRowIndexes();
       }
-      
       function deleteRow(index) {
-        if (document.querySelectorAll('table tr').length <= 2) return; // Don't delete last row
+        if (document.querySelectorAll('table tr').length <= 2) return;
         const row = document.querySelector(\`tr[data-index="\${index}"]\`);
         row.parentNode.removeChild(row);
         updateRowIndexes();
       }
-      
       function updateRowIndexes() {
         const rows = document.querySelectorAll('table tr:not(:first-child)');
         rows.forEach((row, index) => {
           row.setAttribute('data-index', index);
-          const inputs = row.querySelectorAll('input, select');
-          inputs.forEach(input => {
+          row.querySelectorAll('input, select').forEach(input => {
             input.name = input.name.replace(/events\\[\\d+\\]/g, \`events[\${index}]\`);
           });
           const addBtn = row.querySelector('.add-row');
@@ -208,21 +167,15 @@ app.get('/', (req, res) => {
           if (delBtn) delBtn.onclick = () => deleteRow(index);
         });
       }
-      
       document.addEventListener('DOMContentLoaded', function() {
-        const buttons = document.querySelectorAll('.add-row, .delete-row');
-        buttons.forEach(button => {
+        document.querySelectorAll('.add-row, .delete-row').forEach(button => {
           button.onclick = function() {
             const row = this.closest('tr');
             const index = parseInt(row.getAttribute('data-index'));
-            if (this.classList.contains('add-row')) {
-              addRow(index);
-            } else {
-              deleteRow(index);
-            }
+            if (this.classList.contains('add-row')) addRow(index);
+            else deleteRow(index);
           };
         });
-        
         document.querySelector('form').onsubmit = function(e) {
           e.preventDefault();
           const formData = new FormData(this);
@@ -232,7 +185,6 @@ app.get('/', (req, res) => {
             enabledOnSunday: formData.get('enabledOnSunday') === 'on',
             events: []
           };
-          
           const timeInputs = document.querySelectorAll('input[name^="events"][name$="[time]"]');
           timeInputs.forEach((input, index) => {
             const name = document.querySelector(\`input[name="events[\${index}][name]"]\`).value;
@@ -240,7 +192,6 @@ app.get('/', (req, res) => {
             const sound = document.querySelector(\`select[name="events[\${index}][sound]"]\`).value;
             data.events.push({ name, time, sound });
           });
-          
           fetch('/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -251,13 +202,9 @@ app.get('/', (req, res) => {
           .catch(error => alert('Error: ' + error));
         };
       });
-
       function playSoundFile(file) {
         fetch('/play-sound?file=' + encodeURIComponent(file))
-          .then(res => {
-            if (res.ok) alert('Played: ' + file);
-            else alert('Failed to play sound');
-          });
+          .then(res => res.ok ? alert('Played: ' + file) : alert('Failed to play sound'));
       }
       function deleteSoundFile(file) {
         if (!confirm('Delete ' + file + '?')) return;
@@ -266,10 +213,7 @@ app.get('/', (req, res) => {
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: 'file=' + encodeURIComponent(file)
         })
-        .then(res => {
-          if (res.ok) location.reload();
-          else alert('Failed to delete');
-        });
+        .then(res => res.ok ? location.reload() : alert('Failed to delete'));
       }
     </script>
   </head>
@@ -286,7 +230,6 @@ app.get('/', (req, res) => {
         </tr>
         ${eventsHtml}
       </table>
-      
       <h2>Settings</h2>
       <div>
         <input type="checkbox" name="enabled" id="enabled" ${bellSchedule.enabled ? 'checked' : ''}>
@@ -302,7 +245,6 @@ app.get('/', (req, res) => {
       </div>
       <button type="submit">Save schedule and settings</button>
     </form>
-
     <h2>Sound Files</h2>
     <form id="uploadForm" action="/upload-sound" method="post" enctype="multipart/form-data" style="margin-bottom:1em;">
       <input type="file" name="soundFile" accept=".wav,.mp3" required>
@@ -325,40 +267,26 @@ app.get('/', (req, res) => {
     </table>
   </body>
   </html>
-  `;
-  
-  res.send(html);
+  `);
 });
 
-// Handle form submission
+// Save schedule/settings
 app.post('/', (req, res) => {
   try {
+    const data = typeof req.body === 'object' ? req.body : JSON.parse(req.body);
     const newSchedule = {
-      enabled: req.body.enabled,
-      enabledOnSaturday: req.body.enabledOnSaturday,
-      enabledOnSunday: req.body.enabledOnSunday,
-      events: req.body.events || []
+      enabled: data.enabled,
+      enabledOnSaturday: data.enabledOnSaturday,
+      enabledOnSunday: data.enabledOnSunday,
+      events: (data.events || []).filter(e => e.time)
     };
-    
-    // Filter out empty time entries
-    newSchedule.events = newSchedule.events.filter(event => event.time);
-    
-    // If no events, add one empty row
-    if (newSchedule.events.length === 0) {
-      newSchedule.events.push({
-        name: '',
-        time: '08:00',
-        sound: getSoundFiles()[0] || 'test_bell.wav'
-      });
+    if (!newSchedule.events.length) {
+      newSchedule.events.push({ name: '', time: '08:00', sound: getSoundFiles()[0] || 'test_bell.wav' });
     }
-    
-    fs.writeFileSync('schedule.json', JSON.stringify(newSchedule, null, 2));
+    saveSchedule(newSchedule);
     bellSchedule = newSchedule;
-    
-    // Reschedule events
     clearSchedule();
     scheduleEvents();
-    
     res.send('Schedule saved successfully!');
   } catch (err) {
     console.error('Error saving schedule:', err);
