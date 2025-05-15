@@ -4,99 +4,99 @@
   "enabledOnSunday": false,
   "events": [
     {
-      "name": "",
+      "name": "Doors Open",
       "time": "08:30",
-      "sound": "test_bell.wav"
+      "sound": "test-bell.wav"
     },
     {
-      "name": "",
+      "name": "Homeroom Starts",
       "time": "08:40",
-      "sound": "test_bell.wav"
+      "sound": "test-bell.wav"
     },
     {
       "name": "",
       "time": "08:55",
-      "sound": "test_bell.wav"
+      "sound": "test-bell.wav"
     },
     {
       "name": "1st Period",
       "time": "09:00",
-      "sound": "test_bell.wav"
+      "sound": "test-bell.wav"
     },
     {
       "name": "",
       "time": "09:45",
-      "sound": "test_bell.wav"
+      "sound": "test-bell.wav"
     },
     {
       "name": "2nd Period",
       "time": "09:50",
-      "sound": "test_bell.wav"
+      "sound": "test-bell.wav"
     },
     {
       "name": "",
       "time": "10:35",
-      "sound": "test_bell.wav"
+      "sound": "test-bell.wav"
     },
     {
       "name": "3rd Period",
       "time": "10:40",
-      "sound": "test_bell.wav"
+      "sound": "test-bell.wav"
     },
     {
       "name": "",
       "time": "11:25",
-      "sound": "test_bell.wav"
+      "sound": "test-bell.wav"
     },
     {
       "name": "4th Period",
       "time": "11:30",
-      "sound": "test_bell.wav"
+      "sound": "test-bell.wav"
     },
     {
       "name": "",
       "time": "12:15",
-      "sound": "test_bell.wav"
+      "sound": "test-bell.wav"
     },
     {
       "name": "Recess",
       "time": "12:40",
-      "sound": "test_bell.wav"
+      "sound": "test-bell.wav"
     },
     {
       "name": "",
       "time": "13:00",
-      "sound": "test_bell.wav"
+      "sound": "test-bell.wav"
     },
     {
       "name": "5th Period",
       "time": "13:05",
-      "sound": "test_bell.wav"
+      "sound": "test-bell.wav"
     },
     {
       "name": "",
       "time": "13:50",
-      "sound": "test_bell.wav"
+      "sound": "test-bell.wav"
     },
     {
       "name": "6th Period",
       "time": "13:55",
-      "sound": "test_bell.wav"
+      "sound": "test-bell.wav"
     },
     {
       "name": "",
       "time": "14:40",
-      "sound": "test_bell.wav"
+      "sound": "test-bell.wav"
     },
     {
       "name": "7th Period",
       "time": "14:45",
-      "sound": "test_bell.wav"
+      "sound": "test-bell.wav"
     },
     {
       "name": "",
       "time": "15:30",
-      "sound": "test_bell.wav"
+      "sound": "test-bell.wav"
     }
   ]
 }

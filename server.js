@@ -3,6 +3,8 @@ const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const schedule = require('node-schedule');
+const multer = require('multer');
+const upload = multer({ dest: 'sounds/' });
 
 const app = express();
 const port = 3000;
@@ -108,6 +110,37 @@ function getSoundFiles() {
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+// Upload sound file
+app.post('/upload-sound', upload.single('soundFile'), (req, res) => {
+  if (!req.file) return res.status(400).send('No file uploaded');
+  const ext = path.extname(req.file.originalname);
+  const newPath = path.join('sounds', req.file.originalname);
+  fs.renameSync(req.file.path, newPath);
+  res.redirect('/');
+});
+
+// Delete sound file
+app.post('/delete-sound', express.urlencoded({ extended: true }), (req, res) => {
+  const file = req.body.file;
+  if (!file) return res.status(400).send('No file specified');
+  const filePath = path.join('sounds', file);
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+    res.sendStatus(200);
+  } else {
+    res.status(404).send('File not found');
+  }
+});
+
+// Play sound file (manual trigger)
+app.get('/play-sound', (req, res) => {
+  const file = req.query.file;
+  if (!file) return res.status(400).send('No file specified');
+  playSound(file)
+    .then(() => res.sendStatus(200))
+    .catch(() => res.status(500).send('Failed to play sound'));
+});
+
 app.get('/', (req, res) => {
   const soundFiles = getSoundFiles();
   
@@ -169,8 +202,10 @@ app.get('/', (req, res) => {
           inputs.forEach(input => {
             input.name = input.name.replace(/events\\[\\d+\\]/g, \`events[\${index}]\`);
           });
-          row.querySelector('.add-row').onclick = () => addRow(index);
-          row.querySelector('.delete-row').onclick = () => deleteRow(index);
+          const addBtn = row.querySelector('.add-row');
+          if (addBtn) addBtn.onclick = () => addRow(index);
+          const delBtn = row.querySelector('.delete-row');
+          if (delBtn) delBtn.onclick = () => deleteRow(index);
         });
       }
       
@@ -216,6 +251,26 @@ app.get('/', (req, res) => {
           .catch(error => alert('Error: ' + error));
         };
       });
+
+      function playSoundFile(file) {
+        fetch('/play-sound?file=' + encodeURIComponent(file))
+          .then(res => {
+            if (res.ok) alert('Played: ' + file);
+            else alert('Failed to play sound');
+          });
+      }
+      function deleteSoundFile(file) {
+        if (!confirm('Delete ' + file + '?')) return;
+        fetch('/delete-sound', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'file=' + encodeURIComponent(file)
+        })
+        .then(res => {
+          if (res.ok) location.reload();
+          else alert('Failed to delete');
+        });
+      }
     </script>
   </head>
   <body>
@@ -245,9 +300,29 @@ app.get('/', (req, res) => {
         <input type="checkbox" name="enabledOnSunday" id="enabledOnSunday" ${bellSchedule.enabledOnSunday ? 'checked' : ''}>
         <label for="enabledOnSunday">Enable Schedule on Sundays</label>
       </div>
-      
       <button type="submit">Save schedule and settings</button>
     </form>
+
+    <h2>Sound Files</h2>
+    <form id="uploadForm" action="/upload-sound" method="post" enctype="multipart/form-data" style="margin-bottom:1em;">
+      <input type="file" name="soundFile" accept=".wav,.mp3" required>
+      <button type="submit">Upload Sound</button>
+    </form>
+    <table>
+      <tr>
+        <th>File Name</th>
+        <th>Actions</th>
+      </tr>
+      ${soundFiles.map(file => `
+        <tr>
+          <td>${file}</td>
+          <td>
+            <button type="button" onclick="playSoundFile('${file}')">Play</button>
+            <button type="button" onclick="deleteSoundFile('${file}')">Delete</button>
+          </td>
+        </tr>
+      `).join('')}
+    </table>
   </body>
   </html>
   `;
