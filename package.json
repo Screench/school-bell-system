@@ -1,0 +1,11 @@
+{
+    "name": "school-bell-system",
+    "version": "1.0.0",
+    "scripts": {
+        "start": "node server.js"
+    },
+    "dependencies": {
+        "express": "^4.21.2",
+        "node-schedule": "^2.1.1"
+    }
+}
