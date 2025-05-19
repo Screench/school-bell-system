@@ -196,6 +196,11 @@ app.get('/', (req, res) => {
     </tr>
   `).join('');
 
+  // Status bar HTML
+  const statusBarHtml = `<div id="status-bar" style="padding:8px;background:#eef;border:1px solid #ccd;margin-bottom:1em;font-weight:bold;">
+    Calculating next bell...
+  </div>`;
+
   res.send(`
   <!DOCTYPE html>
   <html>
@@ -297,10 +302,93 @@ app.get('/', (req, res) => {
         })
         .then(res => res.ok ? location.reload() : alert('Failed to delete'));
       }
+
+      // Helper: Check if a date is during a break
+      function isDuringBreak(date, breaks) {
+        if (!breaks || !breaks.enabled) return false;
+        function check(range) {
+          if (!range.start || !range.end) return false;
+          const start = new Date(range.start);
+          const end = new Date(range.end);
+          end.setHours(23, 59, 59, 999);
+          return date >= start && date <= end;
+        }
+        return (
+          check(breaks.fall) ||
+          check(breaks.winter) ||
+          check(breaks.spring) ||
+          check(breaks.summer)
+        );
+      }
+
+      // Helper: Get next bell time
+      function getNextBell(now, schedule, breaks) {
+        if (!schedule.enabled) return null;
+        const daysEnabled = [schedule.enabled, schedule.enabled, schedule.enabled, schedule.enabled, schedule.enabled, schedule.enabledOnSaturday, schedule.enabledOnSunday];
+        let soonest = null;
+        for (let addDays = 0; addDays < 14; addDays++) { // look ahead up to 2 weeks
+          const day = new Date(now);
+          day.setDate(now.getDate() + addDays);
+          const dow = day.getDay();
+          if (!daysEnabled[dow]) continue;
+          if (breaks && breaks.enabled && isDuringBreak(day, breaks)) continue;
+          (schedule.events || []).forEach(ev => {
+            if (!ev.time) return;
+            const [h, m] = ev.time.split(':').map(Number);
+            const bellTime = new Date(day);
+            bellTime.setHours(h, m, 0, 0);
+            if (bellTime <= now) return;
+            if (!soonest || bellTime < soonest) soonest = bellTime;
+          });
+          if (soonest) break;
+        }
+        return soonest;
+      }
+
+      // Helper: Format time difference
+      function formatDiff(ms) {
+        if (ms <= 0) return "Now";
+        const totalSec = Math.floor(ms / 1000);
+        const days = Math.floor(totalSec / 86400);
+        const hours = Math.floor((totalSec % 86400) / 3600);
+        const mins = Math.floor((totalSec % 3600) / 60);
+        const secs = totalSec % 60;
+        return \`Next bell is in \${days}d, \${String(hours).padStart(2, '0')}:\${String(mins).padStart(2, '0')}:\${String(secs).padStart(2, '0')}\`;
+      }
+
+      // Status bar updater
+      function updateStatusBar() {
+        const schedule = {
+          enabled: ${bellSchedule.enabled ? 'true' : 'false'},
+          enabledOnSaturday: ${bellSchedule.enabledOnSaturday ? 'true' : 'false'},
+          enabledOnSunday: ${bellSchedule.enabledOnSunday ? 'true' : 'false'},
+          events: ${JSON.stringify(bellSchedule.events || [])}
+        };
+        const breaks = ${JSON.stringify(bellSchedule.breaks || {
+          enabled: false,
+          fall: { start: '', end: '' },
+          winter: { start: '', end: '' },
+          spring: { start: '', end: '' },
+          summer: { start: '', end: '' }
+        })};
+        const now = new Date();
+        const nextBell = getNextBell(now, schedule, breaks);
+        const bar = document.getElementById('status-bar');
+        if (!schedule.enabled) {
+          bar.textContent = "Schedule is disabled.";
+        } else if (!nextBell) {
+          bar.textContent = "No upcoming bells scheduled.";
+        } else {
+          bar.textContent = formatDiff(nextBell - now);
+        }
+      }
+      setInterval(updateStatusBar, 1000);
+      document.addEventListener('DOMContentLoaded', updateStatusBar);
     </script>
   </head>
   <body>
     <h1>School Bell System</h1>
+    ${statusBarHtml}
     <form>
       <h2>Main Schedule</h2>
       <table>
