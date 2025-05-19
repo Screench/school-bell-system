@@ -105,7 +105,7 @@
     }
   ],
   "breaks": {
-    "enabled": true,
+    "enabled": false,
     "fall": {
       "start": "2025-05-20",
       "end": "2025-05-20"

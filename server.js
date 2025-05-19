@@ -20,51 +20,38 @@ if (!fs.existsSync(SCHEDULE_FILE)) {
     enabled: true,
     enabledOnSaturday: false,
     enabledOnSunday: false,
-    events: [{ name: '', time: '08:00', sound: 'test_bell.wav' }]
+    events: [{ name: '', time: '08:00', sound: 'test_bell.wav' }],
+    breaks: {
+      enabled: false,
+      fall: { start: '', end: '' },
+      winter: { start: '', end: '' },
+      spring: { start: '', end: '' },
+      summer: { start: '', end: '' }
+    }
   }, null, 2));
 }
 
 // Utility functions
-const getSoundFiles = () => {
-  try {
-    return fs.readdirSync(SOUNDS_DIR).filter(f => f.endsWith('.wav') || f.endsWith('.mp3'));
-  } catch (e) {
-    console.error('Error reading sounds directory:', e);
-    return [];
-  }
-};
+const getSoundFiles = () =>
+  fs.readdirSync(SOUNDS_DIR).filter(f => f.endsWith('.wav') || f.endsWith('.mp3'));
 
-const loadSchedule = () => {
-  try {
-    return JSON.parse(fs.readFileSync(SCHEDULE_FILE));
-  } catch (e) {
-    console.error('Error loading schedule:', e);
-    process.exit(1);
-  }
-};
-
-const saveSchedule = scheduleObj => {
+const loadSchedule = () => JSON.parse(fs.readFileSync(SCHEDULE_FILE));
+const saveSchedule = scheduleObj =>
   fs.writeFileSync(SCHEDULE_FILE, JSON.stringify(scheduleObj, null, 2));
-};
 
-const playSound = (file) => {
-  return new Promise((resolve, reject) => {
-    exec(`ffmpeg -i ./sounds/${file} -f wav - | aplay -q`, 
-      (err, stdout, stderr) => {
-        if (err) reject(stderr || err);
-        else resolve(stdout);
-      }
+const playSound = file =>
+  new Promise((resolve, reject) => {
+    exec(`ffmpeg -i ./sounds/${file} -f wav - | aplay -q`,
+      (err, stdout, stderr) => err ? reject(stderr || err) : resolve(stdout)
     );
   });
-};
 
 const isDuringBreak = (date, breaks) => {
   if (!breaks || !breaks.enabled) return false;
-  const check = (range) => {
+  const check = range => {
     if (!range.start || !range.end) return false;
     const start = new Date(range.start);
     const end = new Date(range.end);
-    // Set end to end of day
     end.setHours(23, 59, 59, 999);
     return date >= start && date <= end;
   };
@@ -79,9 +66,8 @@ const isDuringBreak = (date, breaks) => {
 // Scheduling
 let bellSchedule = loadSchedule();
 
-const clearSchedule = () => {
+const clearSchedule = () =>
   Object.values(schedule.scheduledJobs).forEach(job => job.cancel());
-};
 
 const scheduleEvents = () => {
   if (!bellSchedule.enabled) return;
@@ -91,9 +77,9 @@ const scheduleEvents = () => {
     rule.hour = hour;
     rule.minute = minute;
     rule.second = 0;
-    rule.dayOfWeek = [0, 1, 2, 3, 4]; // Mon-Fri
-    if (bellSchedule.enabledOnSaturday) rule.dayOfWeek.push(5);
-    if (bellSchedule.enabledOnSunday) rule.dayOfWeek.push(6);
+    rule.dayOfWeek = [1, 2, 3, 4, 5]; // Mon-Fri
+    if (bellSchedule.enabledOnSaturday) rule.dayOfWeek.push(6);
+    if (bellSchedule.enabledOnSunday) rule.dayOfWeek.push(0);
     schedule.scheduleJob(rule, () => {
       const now = new Date();
       if (isDuringBreak(now, bellSchedule.breaks)) {
@@ -145,8 +131,6 @@ app.get('/play-sound', (req, res) => {
 app.get('/', (req, res) => {
   bellSchedule = loadSchedule();
   const soundFiles = getSoundFiles();
-
-  // Add breaks section HTML
   const breaks = bellSchedule.breaks || {
     enabled: false,
     fall: { start: '', end: '' },
@@ -326,7 +310,7 @@ app.get('/', (req, res) => {
         if (!schedule.enabled) return null;
         const daysEnabled = [schedule.enabled, schedule.enabled, schedule.enabled, schedule.enabled, schedule.enabled, schedule.enabledOnSaturday, schedule.enabledOnSunday];
         let soonest = null;
-        for (let addDays = 0; addDays < 14; addDays++) { // look ahead up to 2 weeks
+        for (let addDays = 0; addDays < 14; addDays++) {
           const day = new Date(now);
           day.setDate(now.getDate() + addDays);
           const dow = day.getDay();
