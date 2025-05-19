@@ -190,6 +190,27 @@ app.get('/', (req, res) => {
   <html>
   <head>
     <title>School Bell System</title>
+    <style>
+      #modal {
+        display: none;
+        position: fixed;
+        left: 0; top: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.2);
+        z-index: 1000;
+      }
+      #modal:target {
+        display: block;
+      }
+      #modal > div {
+        background: #fff;
+        margin: 20px auto;
+        padding: 1em 2em;
+        width: fit-content;
+        border: 1px solid #888;
+        border-radius: 4px;
+        text-align: center;
+      }
+    </style>
     <script>
       function addRow(index) {
         const table = document.querySelector('table');
@@ -269,7 +290,10 @@ app.get('/', (req, res) => {
             body: JSON.stringify(data)
           })
           .then(response => response.text())
-          .then(message => alert(message))
+          .then(message => {
+            window.location.hash = 'modal';
+            setTimeout(() => location.reload(), 1200);
+          })
           .catch(error => alert('Error: ' + error));
         };
       });
@@ -368,6 +392,11 @@ app.get('/', (req, res) => {
       }
       setInterval(updateStatusBar, 1000);
       document.addEventListener('DOMContentLoaded', updateStatusBar);
+
+      // Remove #modal from URL on load so modal doesn't persist after refresh
+      if (window.location.hash === '#modal') {
+        history.replaceState(null, '', window.location.pathname);
+      }
     </script>
   </head>
   <body>
@@ -400,6 +429,9 @@ app.get('/', (req, res) => {
       ${breaksHtml}
       <button type="submit">Save schedule and settings</button>
     </form>
+    <div id="modal">
+      <div>Schedule saved!</div>
+    </div>
     <h2>Sound Files</h2>
     <form id="uploadForm" action="/upload-sound" method="post" enctype="multipart/form-data" style="margin-bottom:1em;">
       <input type="file" name="soundFile" accept=".wav,.mp3" required>
