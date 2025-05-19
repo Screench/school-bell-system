@@ -6,12 +6,12 @@
     {
       "name": "Doors Open",
       "time": "08:30",
-      "sound": "Sound3.wav"
+      "sound": "test-bell.wav"
     },
     {
       "name": "Homeroom Starts",
       "time": "08:40",
-      "sound": "Sound3.wav"
+      "sound": "test-bell.wav"
     },
     {
       "name": "",
@@ -81,6 +81,11 @@
     {
       "name": "6th Period",
       "time": "13:55",
+      "sound": "test-bell.wav"
+    },
+    {
+      "name": "",
+      "time": "14:14",
       "sound": "test-bell.wav"
     },
     {

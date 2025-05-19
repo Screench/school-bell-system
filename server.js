@@ -5,6 +5,8 @@ const path = require('path');
 const schedule = require('node-schedule');
 const multer = require('multer');
 const upload = multer({ dest: 'sounds/' });
+const player = require('play-sound')();
+const { play } = require('sound-play');
 
 const app = express();
 const port = 3000;
@@ -45,13 +47,17 @@ const saveSchedule = scheduleObj => {
   fs.writeFileSync(SCHEDULE_FILE, JSON.stringify(scheduleObj, null, 2));
 };
 
-const playSound = file =>
-  new Promise((resolve, reject) => {
-    exec(`aplay -D hw:0,0 -f S16_LE -r 44100 ./sounds/${file}`, (err, stdout, stderr) => {
-      if (err) reject(stderr);
-      else resolve(stdout);
-    });
+const playSound = (file) => {
+  return new Promise((resolve, reject) => {
+    exec(`ffmpeg -i ./sounds/${file} -f wav - | aplay -q`, 
+      (err, stdout, stderr) => {
+        if (err) reject(stderr || err);
+        else resolve(stdout);
+      }
+    );
   });
+};
+
 
 // Scheduling
 let bellSchedule = loadSchedule();
@@ -204,7 +210,7 @@ app.get('/', (req, res) => {
       });
       function playSoundFile(file) {
         fetch('/play-sound?file=' + encodeURIComponent(file))
-          .then(res => res.ok ? alert('Played: ' + file) : alert('Failed to play sound'));
+          .then(res => { if (!res.ok) alert('Failed to play sound'); });
       }
       function deleteSoundFile(file) {
         if (!confirm('Delete ' + file + '?')) return;
