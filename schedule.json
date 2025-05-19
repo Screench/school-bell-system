@@ -103,5 +103,24 @@
       "time": "15:30",
       "sound": "test-bell.wav"
     }
-  ]
+  ],
+  "breaks": {
+    "enabled": true,
+    "fall": {
+      "start": "2025-05-20",
+      "end": "2025-05-20"
+    },
+    "winter": {
+      "start": "2025-05-21",
+      "end": "2025-05-22"
+    },
+    "spring": {
+      "start": "",
+      "end": ""
+    },
+    "summer": {
+      "start": "",
+      "end": ""
+    }
+  }
 }

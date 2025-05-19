@@ -58,6 +58,23 @@ const playSound = (file) => {
   });
 };
 
+const isDuringBreak = (date, breaks) => {
+  if (!breaks || !breaks.enabled) return false;
+  const check = (range) => {
+    if (!range.start || !range.end) return false;
+    const start = new Date(range.start);
+    const end = new Date(range.end);
+    // Set end to end of day
+    end.setHours(23, 59, 59, 999);
+    return date >= start && date <= end;
+  };
+  return (
+    check(breaks.fall) ||
+    check(breaks.winter) ||
+    check(breaks.spring) ||
+    check(breaks.summer)
+  );
+};
 
 // Scheduling
 let bellSchedule = loadSchedule();
@@ -78,6 +95,11 @@ const scheduleEvents = () => {
     if (bellSchedule.enabledOnSaturday) rule.dayOfWeek.push(5);
     if (bellSchedule.enabledOnSunday) rule.dayOfWeek.push(6);
     schedule.scheduleJob(rule, () => {
+      const now = new Date();
+      if (isDuringBreak(now, bellSchedule.breaks)) {
+        console.log(`Bell skipped at ${event.time} due to active break.`);
+        return;
+      }
       console.log(`Bell time! ${event.time} -> Playing ${event.sound}`);
       playSound(event.sound).catch(console.error);
     });
@@ -123,6 +145,41 @@ app.get('/play-sound', (req, res) => {
 app.get('/', (req, res) => {
   bellSchedule = loadSchedule();
   const soundFiles = getSoundFiles();
+
+  // Add breaks section HTML
+  const breaks = bellSchedule.breaks || {
+    enabled: false,
+    fall: { start: '', end: '' },
+    winter: { start: '', end: '' },
+    spring: { start: '', end: '' },
+    summer: { start: '', end: '' }
+  };
+
+  const breaksHtml = `
+    <h2>School Breaks</h2>
+    <div>
+      <input type="checkbox" name="breaks[enabled]" id="breaks_enabled" ${breaks.enabled ? 'checked' : ''}>
+      <label for="breaks_enabled"><b>Enable Breaks</b></label>
+    </div>
+    <div style="margin-left:1em;">
+      <label>Fall Break: </label>
+      <input type="date" name="breaks[fall][start]" value="${breaks.fall.start || ''}"> to
+      <input type="date" name="breaks[fall][end]" value="${breaks.fall.end || ''}">
+      <br>
+      <label>Winter Break: </label>
+      <input type="date" name="breaks[winter][start]" value="${breaks.winter.start || ''}"> to
+      <input type="date" name="breaks[winter][end]" value="${breaks.winter.end || ''}">
+      <br>
+      <label>Spring Break: </label>
+      <input type="date" name="breaks[spring][start]" value="${breaks.spring.start || ''}"> to
+      <input type="date" name="breaks[spring][end]" value="${breaks.spring.end || ''}">
+      <br>
+      <label>Summer Break: </label>
+      <input type="date" name="breaks[summer][start]" value="${breaks.summer.start || ''}"> to
+      <input type="date" name="breaks[summer][end]" value="${breaks.summer.end || ''}">
+    </div>
+  `;
+
   const eventsHtml = bellSchedule.events.map((event, index) => `
     <tr data-index="${index}">
       <td><input type="text" name="events[${index}][name]" value="${event.name || ''}"></td>
@@ -189,7 +246,26 @@ app.get('/', (req, res) => {
             enabled: formData.get('enabled') === 'on',
             enabledOnSaturday: formData.get('enabledOnSaturday') === 'on',
             enabledOnSunday: formData.get('enabledOnSunday') === 'on',
-            events: []
+            events: [],
+            breaks: {
+              enabled: formData.get('breaks[enabled]') === 'on',
+              fall: {
+                start: formData.get('breaks[fall][start]') || '',
+                end: formData.get('breaks[fall][end]') || ''
+              },
+              winter: {
+                start: formData.get('breaks[winter][start]') || '',
+                end: formData.get('breaks[winter][end]') || ''
+              },
+              spring: {
+                start: formData.get('breaks[spring][start]') || '',
+                end: formData.get('breaks[spring][end]') || ''
+              },
+              summer: {
+                start: formData.get('breaks[summer][start]') || '',
+                end: formData.get('breaks[summer][end]') || ''
+              }
+            }
           };
           const timeInputs = document.querySelectorAll('input[name^="events"][name$="[time]"]');
           timeInputs.forEach((input, index) => {
@@ -249,6 +325,7 @@ app.get('/', (req, res) => {
         <input type="checkbox" name="enabledOnSunday" id="enabledOnSunday" ${bellSchedule.enabledOnSunday ? 'checked' : ''}>
         <label for="enabledOnSunday">Enable Schedule on Sundays</label>
       </div>
+      ${breaksHtml}
       <button type="submit">Save schedule and settings</button>
     </form>
     <h2>Sound Files</h2>
@@ -284,7 +361,14 @@ app.post('/', (req, res) => {
       enabled: data.enabled,
       enabledOnSaturday: data.enabledOnSaturday,
       enabledOnSunday: data.enabledOnSunday,
-      events: (data.events || []).filter(e => e.time)
+      events: (data.events || []).filter(e => e.time),
+      breaks: data.breaks || {
+        enabled: false,
+        fall: { start: '', end: '' },
+        winter: { start: '', end: '' },
+        spring: { start: '', end: '' },
+        summer: { start: '', end: '' }
+      }
     };
     if (!newSchedule.events.length) {
       newSchedule.events.push({ name: '', time: '08:00', sound: getSoundFiles()[0] || 'test_bell.wav' });
