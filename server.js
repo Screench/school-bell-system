@@ -4,7 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const schedule = require('node-schedule');
 const multer = require('multer');
-const upload = multer({ dest: 'sounds/' });
+const upload = multer({
+  dest: 'sounds/',
+  limits: { fileSize: 20 * 1024 * 1024 } // 20 MB
+});
 const player = require('play-sound')();
 const { play } = require('sound-play');
 
