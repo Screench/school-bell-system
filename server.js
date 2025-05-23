@@ -134,41 +134,10 @@ app.get('/play-sound', (req, res) => {
 app.get('/', (req, res) => {
   bellSchedule = loadSchedule();
   const soundFiles = getSoundFiles();
-  const breaks = bellSchedule.breaks || {
-    enabled: false,
-    fall: { start: '', end: '' },
-    winter: { start: '', end: '' },
-    spring: { start: '', end: '' },
-    summer: { start: '', end: '' }
-  };
 
-  const breaksHtml = `
-    <h2>School Breaks</h2>
-    <div>
-      <input type="checkbox" name="breaks[enabled]" id="breaks_enabled" ${breaks.enabled ? 'checked' : ''}>
-      <label for="breaks_enabled"><b>Enable Breaks</b></label>
-    </div>
-    <div style="margin-left:1em;">
-      <label>Fall Break: </label>
-      <input type="date" name="breaks[fall][start]" value="${breaks.fall.start || ''}"> to
-      <input type="date" name="breaks[fall][end]" value="${breaks.fall.end || ''}">
-      <br>
-      <label>Winter Break: </label>
-      <input type="date" name="breaks[winter][start]" value="${breaks.winter.start || ''}"> to
-      <input type="date" name="breaks[winter][end]" value="${breaks.winter.end || ''}">
-      <br>
-      <label>Spring Break: </label>
-      <input type="date" name="breaks[spring][start]" value="${breaks.spring.start || ''}"> to
-      <input type="date" name="breaks[spring][end]" value="${breaks.spring.end || ''}">
-      <br>
-      <label>Summer Break: </label>
-      <input type="date" name="breaks[summer][start]" value="${breaks.summer.start || ''}"> to
-      <input type="date" name="breaks[summer][end]" value="${breaks.summer.end || ''}">
-    </div>
-  `;
-
+  // Main Schedule rows with fly-in
   const eventsHtml = bellSchedule.events.map((event, index) => `
-    <tr data-index="${index}">
+    <tr class="fly-in" data-index="${index}">
       <td><input type="text" name="events[${index}][name]" value="${event.name || ''}"></td>
       <td><input type="time" name="events[${index}][time]" value="${event.time || '08:00'}"></td>
       <td>
@@ -183,10 +152,108 @@ app.get('/', (req, res) => {
     </tr>
   `).join('');
 
-  // Status bar HTML
-  const statusBarHtml = `<div id="status-bar" style="padding:8px;background:#eef;border:1px solid #ccd;margin-bottom:1em;font-weight:bold;">
-    Calculating next bell...
-  </div>`;
+  // Breaks section as a grid
+  const breaks = bellSchedule.breaks || { enabled: false, fall: {}, winter: {}, spring: {}, summer: {} };
+  const breaksHtml = `
+    <div class="checkbox-container">
+      <input type="checkbox" name="breaks[enabled]" id="breaks_enabled" ${breaks.enabled ? 'checked' : ''}>
+      <label for="breaks_enabled"><b>Enable Breaks</b></label>
+    </div>
+    <div class="breaks-grid">
+      <div class="break-label">Fall Break:</div>
+      <input type="date" name="breaks[fall][start]" value="${breaks.fall.start || ''}">
+      <div style="text-align:center;align-self:center;">to</div>
+      <input type="date" name="breaks[fall][end]" value="${breaks.fall.end || ''}">
+      <div class="break-label">Winter Break:</div>
+      <input type="date" name="breaks[winter][start]" value="${breaks.winter.start || ''}">
+      <div style="text-align:center;align-self:center;">to</div>
+      <input type="date" name="breaks[winter][end]" value="${breaks.winter.end || ''}">
+      <div class="break-label">Spring Break:</div>
+      <input type="date" name="breaks[spring][start]" value="${breaks.spring.start || ''}">
+      <div style="text-align:center;align-self:center;">to</div>
+      <input type="date" name="breaks[spring][end]" value="${breaks.spring.end || ''}">
+      <div class="break-label">Summer Break:</div>
+      <input type="date" name="breaks[summer][start]" value="${breaks.summer.start || ''}">
+      <div style="text-align:center;align-self:center;">to</div>
+      <input type="date" name="breaks[summer][end]" value="${breaks.summer.end || ''}">
+    </div>
+  `;
+
+  // Accordion HTML
+  const accordionHtml = `
+    <div class="accordion">
+      <div class="accordion-section open" id="main-schedule-section">
+        <button type="button" class="accordion-header open">Main Schedule</button>
+        <div class="accordion-content">
+          <table>
+            <tr>
+              <th>Name</th>
+              <th>Time</th>
+              <th>Sound</th>
+              <th>Actions</th>
+            </tr>
+            ${eventsHtml}
+          </table>
+        </div>
+      </div>
+      <div class="accordion-section" id="settings-section">
+        <button type="button" class="accordion-header">Settings</button>
+        <div class="accordion-content">
+          <div class="checkbox-container">
+            <input type="checkbox" name="enabled" id="enabled" ${bellSchedule.enabled ? 'checked' : ''}>
+            <label for="enabled">Enable Schedule</label>
+          </div>
+          <div class="checkbox-container">
+            <input type="checkbox" name="enabledOnSaturday" id="enabledOnSaturday" ${bellSchedule.enabledOnSaturday ? 'checked' : ''}>
+            <label for="enabledOnSaturday">Enable Schedule on Saturdays</label>
+          </div>
+          <div class="checkbox-container">
+            <input type="checkbox" name="enabledOnSunday" id="enabledOnSunday" ${bellSchedule.enabledOnSunday ? 'checked' : ''}>
+            <label for="enabledOnSunday">Enable Schedule on Sundays</label>
+          </div>
+        </div>
+      </div>
+      <div class="accordion-section" id="breaks-section">
+        <button type="button" class="accordion-header">School Breaks</button>
+        <div class="accordion-content">
+          ${breaksHtml}
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Sound files section (separate form)
+  const soundFilesHtml = `
+    <div class="accordion">
+      <div class="accordion-section" id="sound-files-section">
+        <button type="button" class="accordion-header">Sound Files</button>
+        <div class="accordion-content">
+          <form id="uploadForm" action="/upload-sound" method="post" enctype="multipart/form-data" style="margin-bottom:1em;">
+            <input type="file" name="soundFile" accept=".wav,.mp3" required>
+            <button type="submit">Upload Sound</button>
+          </form>
+          <table>
+            <tr>
+              <th>File Name</th>
+              <th>Actions</th>
+            </tr>
+            ${soundFiles.map(file => `
+              <tr>
+                <td>${file}</td>
+                <td>
+                  <button type="button" onclick="playSoundFile('${file}')">Play</button>
+                  <button type="button" onclick="deleteSoundFile('${file}')">Delete</button>
+                </td>
+              </tr>
+            `).join('')}
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Status bar
+  const statusBarHtml = `<div id="status-bar">Calculating next bell...</div>`;
 
   res.send(`
   <!DOCTYPE html>
@@ -194,27 +261,262 @@ app.get('/', (req, res) => {
   <head>
     <title>School Bell System</title>
     <style>
+      :root {
+        --primary:rgb(155, 155, 155);
+        --primary-hover:rgb(216, 216, 216);
+        --text: #1d1d1f;
+        --light-text: #86868b;
+        --background: #f5f5f7;
+        --card-bg: #fff;
+        --border: #e0e0e5;
+        --blur-bg: rgba(255,255,255,0.85);
+        --shadow: 0 2px 16px 0 rgba(0,0,0,0.04);
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+        color: var(--text);
+        background: var(--background);
+        margin: 0;
+        padding: 0;
+        padding-top: 56px;
+      }
+      #status-bar {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        z-index: 100;
+        padding: 12px 0;
+        text-align: center;
+        font-size: 1em;
+        font-weight: 500;
+        background: var(--blur-bg);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-bottom: 1px solid var(--border);
+        box-shadow: var(--shadow);
+      }
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 16px;
+      }
+      h1 {
+        font-size: 2rem;
+        font-weight: 600;
+        margin: 0 0 24px 0;
+        text-align: center;
+      }
+      .accordion {
+        border-radius: 14px;
+        margin-bottom: 24px;
+        background: var(--card-bg);
+        box-shadow: var(--shadow);
+        border: none;
+        overflow: hidden;
+      }
+      .accordion-section {
+        border-bottom: 1px solid var(--border);
+        border-radius: 0;
+      }
+      .accordion-section:last-child {
+        border-bottom: none;
+      }
+      .accordion-header {
+        background: none;
+        border: none;
+        width: 100%;
+        text-align: left;
+        font-size: 1.1em;
+        font-weight: 700;
+        padding: 16px 20px;
+        cursor: pointer;
+        color: var(--text);
+        outline: none;
+        transition: background 0.2s;
+      }
+      .accordion-header.open {
+        // background: #f0f0f3;
+      }
+      .accordion-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.4s cubic-bezier(.4,0,.2,1), padding 0.4s;
+        padding: 0 20px;
+        background:var(--background);
+      }
+      .accordion-section.open .accordion-content {
+        padding: 12px 20px 18px 20px;
+        max-height: 800px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0;
+        background: none;
+      }
+      th, td {
+        padding: 0px 6px;
+        font-size: 0.97em;
+        border: none;
+      }
+      th {
+        color: var(--light-text);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        font-size: 0.93em;
+        background: none;
+        text-align: left;
+        padding-left: 10px;
+      }
+      input[type="text"], input[type="time"], input[type="date"], select {
+        width: 100%;
+        padding: 6px 8px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--card-bg);
+        color: var(--text);
+        font-size: 0.97em;
+        box-sizing: border-box;
+        transition: border-color 0.2s;
+      }
+      input[type="text"]:focus, input[type="time"]:focus, input[type="date"]:focus, select:focus {
+        outline: none;
+        border-color: var(--primary);
+      }
+      button, input[type="submit"] {
+        background: var(--primary);
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 7px 16px;
+        font-size: 0.97em;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.2s;
+        margin: 1px 2px;
+      }
+      button:hover, input[type="submit"]:hover {
+        background: var(--primary-hover);
+      }
+      input[type="file"] {
+        margin-right: 8px;
+      }
+      .checkbox-container {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        margin-right: 8px;
+        accent-color: var(--primary);
+      }
+      .breaks-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        gap: 8px 12px;
+        margin-top: 10px;
+        margin-bottom: 0;
+      }
+      .break-label {
+        font-weight: 500;
+        color: var(--light-text);
+        text-align: right;
+        padding-right: 6px;
+        white-space: nowrap;
+        align-self: center;
+      }
+      .breaks-grid input[type="date"] {
+        width: 100%;
+        min-width: 0;
+      }
+      @media (max-width: 700px) {
+        .container { padding: 6px; }
+        .breaks-grid { grid-template-columns: 1fr 1fr; }
+      }
+      .fly-in {
+        opacity: 0;
+        transform: translateX(-24px);
+        transition: opacity 0.5s cubic-bezier(.4,0,.2,1), transform 0.5s cubic-bezier(.4,0,.2,1);
+      }
+      .fly-in.show {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      .form-actions {
+        margin: 18px 0;
+        display: flex;
+        justify-content: center;
+      }
       #modal {
         display: none;
         position: fixed;
-        left: 0; top: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,0.2);
+        left: 0;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
         z-index: 1000;
+        /* Remove flex and blur for classic modal style */
       }
-      #modal:target {
+      #modal.show {
         display: block;
       }
       #modal > div {
         background: #fff;
-        margin: 20px auto;
+        margin: 20vh auto;
         padding: 1em 2em;
         width: fit-content;
         border: 1px solid #888;
         border-radius: 4px;
         text-align: center;
+        font-size: 1.2em;
+        box-shadow: 0 2px 16px 0 rgba(0,0,0,0.08);
+        animation: fadeIn 0.3s ease-out;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
       }
     </style>
     <script>
+      // Accordion logic: allow multiple open, Main Schedule open by default
+      document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.accordion-header').forEach(header => {
+          header.onclick = function() {
+            this.classList.toggle('open');
+            this.parentElement.classList.toggle('open');
+          };
+        });
+        // Open Main Schedule by default
+        document.getElementById('main-schedule-section').classList.add('open');
+        document.querySelector('#main-schedule-section .accordion-header').classList.add('open');
+      });
+
+      // Fly-in animation for table rows
+      document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.fly-in').forEach((row, i) => {
+          setTimeout(() => row.classList.add('show'), 80 + i * 60);
+        });
+      });
+
+      // Modal logic (show only after save)
+      function handleModal() {
+        const modal = document.getElementById('modal');
+        if (window.location.hash === '#modal') {
+          modal.classList.add('show');
+          setTimeout(() => {
+            modal.classList.remove('show');
+            history.replaceState(null, '', window.location.pathname);
+          }, 1200);
+        } else {
+          modal.classList.remove('show');
+        }
+      }
+      window.addEventListener('hashchange', handleModal);
+      document.addEventListener('DOMContentLoaded', handleModal);
+
       function addRow(index) {
         const table = document.querySelector('table');
         const row = table.rows[index + 1];
@@ -412,58 +714,18 @@ app.get('/', (req, res) => {
     </script>
   </head>
   <body>
-    <h1>School Bell System</h1>
-    ${statusBarHtml}
-    <form>
-      <h2>Main Schedule</h2>
-      <table>
-        <tr>
-          <th>Name</th>
-          <th>Time</th>
-          <th>Sound</th>
-          <th>Actions</th>
-        </tr>
-        ${eventsHtml}
-      </table>
-      <h2>Settings</h2>
-      <div>
-        <input type="checkbox" name="enabled" id="enabled" ${bellSchedule.enabled ? 'checked' : ''}>
-        <label for="enabled">Enable Schedule</label>
-      </div>
-      <div>
-        <input type="checkbox" name="enabledOnSaturday" id="enabledOnSaturday" ${bellSchedule.enabledOnSaturday ? 'checked' : ''}>
-        <label for="enabledOnSaturday">Enable Schedule on Saturdays</label>
-      </div>
-      <div>
-        <input type="checkbox" name="enabledOnSunday" id="enabledOnSunday" ${bellSchedule.enabledOnSunday ? 'checked' : ''}>
-        <label for="enabledOnSunday">Enable Schedule on Sundays</label>
-      </div>
-      ${breaksHtml}
-      <button type="submit">Save schedule and settings</button>
-    </form>
-    <div id="modal">
-      <div>Schedule saved!</div>
+    <div id="status-bar">Calculating next bell...</div>
+    <div class="container">
+      <h1>School Bell System</h1>
+      <form>
+        ${accordionHtml}
+        <div class="form-actions">
+          <button type="submit">Save schedule and settings</button>
+        </div>
+      </form>
+      ${soundFilesHtml}
+      <div id="modal"><div>Schedule saved!</div></div>
     </div>
-    <h2>Sound Files</h2>
-    <form id="uploadForm" action="/upload-sound" method="post" enctype="multipart/form-data" style="margin-bottom:1em;">
-      <input type="file" name="soundFile" accept=".wav,.mp3" required>
-      <button type="submit">Upload Sound</button>
-    </form>
-    <table>
-      <tr>
-        <th>File Name</th>
-        <th>Actions</th>
-      </tr>
-      ${soundFiles.map(file => `
-        <tr>
-          <td>${file}</td>
-          <td>
-            <button type="button" onclick="playSoundFile('${file}')">Play</button>
-            <button type="button" onclick="deleteSoundFile('${file}')">Delete</button>
-          </td>
-        </tr>
-      `).join('')}
-    </table>
   </body>
   </html>
   `);

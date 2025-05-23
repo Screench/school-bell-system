@@ -102,6 +102,21 @@
       "name": "",
       "time": "15:30",
       "sound": "test-bell.wav"
+    },
+    {
+      "name": "",
+      "time": "14:02",
+      "sound": "1st-end.wav"
+    },
+    {
+      "name": "",
+      "time": "14:02",
+      "sound": "1st-end.wav"
+    },
+    {
+      "name": "",
+      "time": "14:02",
+      "sound": "1st-end.wav"
     }
   ],
   "breaks": {

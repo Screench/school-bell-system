@@ -2,7 +2,7 @@
     "name": "school-bell-system",
     "version": "1.0.0",
     "scripts": {
-        "start": "node server.js"
+        "start": "nodemon server.js"
     },
     "dependencies": {
         "express": "^4.21.2",
