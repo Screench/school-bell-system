@@ -6,7 +6,7 @@ const schedule = require('node-schedule');
 const multer = require('multer');
 const upload = multer({
   dest: 'sounds/',
-  limits: { fileSize: 20 * 1024 * 1024 } // 20 MB
+  limits: { fileSize: 50 * 1024 * 1024 } // 50 MB
 });
 const player = require('play-sound')();
 const { play } = require('sound-play');
@@ -98,10 +98,6 @@ const scheduleEvents = () => {
 clearSchedule();
 scheduleEvents();
 
-// Middleware
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-
 // Sound file endpoints
 app.post('/upload-sound', upload.single('soundFile'), (req, res) => {
   if (!req.file) return res.status(400).send('No file uploaded');
@@ -109,6 +105,10 @@ app.post('/upload-sound', upload.single('soundFile'), (req, res) => {
   fs.renameSync(req.file.path, newPath);
   res.redirect('/');
 });
+
+// Middleware
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 app.post('/delete-sound', express.urlencoded({ extended: true }), (req, res) => {
   const file = req.body.file;
