@@ -332,10 +332,19 @@ app.get('/', (req, res) => {
       // Helper: Get next bell time
       function getNextBell(now, schedule, breaks) {
         if (!schedule.enabled) return null;
-        const daysEnabled = [schedule.enabled, schedule.enabled, schedule.enabled, schedule.enabled, schedule.enabled, schedule.enabledOnSaturday, schedule.enabledOnSunday];
+        const daysEnabled = [
+          schedule.enabledOnSunday,    // Sunday (0)
+          schedule.enabled,            // Monday (1)
+          schedule.enabled,            // Tuesday (2)
+          schedule.enabled,            // Wednesday (3)
+          schedule.enabled,            // Thursday (4)
+          schedule.enabled,            // Friday (5)
+          schedule.enabledOnSaturday   // Saturday (6)
+        ];
         let soonest = null;
         for (let addDays = 0; addDays < 14; addDays++) {
           const day = new Date(now);
+          day.setHours(0, 0, 0, 0);
           day.setDate(now.getDate() + addDays);
           const dow = day.getDay();
           if (!daysEnabled[dow]) continue;
@@ -348,7 +357,7 @@ app.get('/', (req, res) => {
             if (bellTime <= now) return;
             if (!soonest || bellTime < soonest) soonest = bellTime;
           });
-          if (soonest) break;
+          // Don't break here; there might be a bell later today!
         }
         return soonest;
       }
