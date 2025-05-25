@@ -102,32 +102,17 @@
       "name": "",
       "time": "15:30",
       "sound": "test-bell.wav"
-    },
-    {
-      "name": "",
-      "time": "14:02",
-      "sound": "1st-end.wav"
-    },
-    {
-      "name": "",
-      "time": "14:02",
-      "sound": "1st-end.wav"
-    },
-    {
-      "name": "",
-      "time": "14:02",
-      "sound": "1st-end.wav"
     }
   ],
   "breaks": {
     "enabled": false,
     "fall": {
-      "start": "2025-05-20",
-      "end": "2025-05-20"
+      "start": "",
+      "end": ""
     },
     "winter": {
-      "start": "2025-05-22",
-      "end": "2025-05-23"
+      "start": "",
+      "end": ""
     },
     "spring": {
       "start": "",

@@ -263,13 +263,13 @@ app.get('/', (req, res) => {
     <style>
       :root {
         --primary:rgb(155, 155, 155);
-        --primary-hover:rgb(216, 216, 216);
+        --primary-hover:rgb(145, 145, 145);
         --text: #1d1d1f;
         --light-text: #86868b;
         --background: #f5f5f7;
-        --card-bg: #fff;
+        --card-bg:rgba(167, 200, 255, 0.69);
         --border: #e0e0e5;
-        --blur-bg: rgba(255,255,255,0.85);
+        --blur-bg: rgba(255,255,255,0.55);
         --shadow: 0 2px 16px 0 rgba(0,0,0,0.04);
       }
       body {
@@ -327,6 +327,7 @@ app.get('/', (req, res) => {
         text-align: left;
         font-size: 1.1em;
         font-weight: 700;
+        margin: 0;
         padding: 16px 20px;
         cursor: pointer;
         color: var(--text);
@@ -334,7 +335,8 @@ app.get('/', (req, res) => {
         transition: background 0.2s;
       }
       .accordion-header.open {
-        // background: #f0f0f3;
+        background: var(--background)
+        margin: 0;
       }
       .accordion-content {
         max-height: 0;
@@ -414,10 +416,11 @@ app.get('/', (req, res) => {
       }
       .breaks-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr 1fr 1fr;
+        grid-template-columns: 120px 120px 20px 120px;
         gap: 8px 12px;
         margin-top: 10px;
         margin-bottom: 0;
+        max-width: 720px
       }
       .break-label {
         font-weight: 500;
