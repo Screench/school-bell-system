@@ -262,15 +262,28 @@ app.get('/', (req, res) => {
     <title>School Bell System</title>
     <style>
       :root {
-        --primary:rgb(155, 155, 155);
-        --primary-hover:rgb(145, 145, 145);
-        --text: #1d1d1f;
-        --light-text: #86868b;
-        --background: #f5f5f7;
-        --card-bg:rgba(167, 200, 255, 0.69);
-        --border: #e0e0e5;
-        --blur-bg: rgba(255,255,255,0.55);
-        --shadow: 0 2px 16px 0 rgba(0,0,0,0.04);
+        // --primary:rgb(155, 155, 155);
+        // --primary-hover:rgb(145, 145, 145);
+        // --text: #1d1d1f;
+        // --light-text: #86868b;
+        // --background: #f5f5f7;
+        // --card-bg:rgba(167, 200, 255, 0.69);
+        // --border: #e0e0e5;
+        // --blur-bg: rgba(255,255,255,0.55);
+        // --shadow: 0 2px 16px 0 rgba(0,0,0,0.04);
+
+
+        // --primary: #1d7bdb;
+        --primary:rgba(74, 222, 128, 0.5);
+        --primary-hover: #1560b3;
+        --text: #dfe8ff;
+        --light-text: #4e5985;
+        --background: #081030;
+        --card-bg: rgba(21, 33, 72, 0.96);
+        --border: #293359;
+        --blur-bg: rgba(17, 27, 64, 0.85);
+        --shadow: 0 15px 45px 0 rgba(0,0,0,0.15);
+        --accent-green:rgb(74, 222, 128);
       }
       body {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
@@ -308,7 +321,8 @@ app.get('/', (req, res) => {
       .accordion {
         border-radius: 14px;
         margin-bottom: 24px;
-        background: var(--card-bg);
+        // background: var(--card-bg);
+                background: linear-gradient(135deg, rgba(74,222,128,0.10), rgba(29,123,219,0.08) 20%, var(--card-bg) 40%, var(--card-bg) 100%);
         box-shadow: var(--shadow);
         border: none;
         overflow: hidden;
@@ -335,7 +349,8 @@ app.get('/', (req, res) => {
         transition: background 0.2s;
       }
       .accordion-header.open {
-        background: var(--background)
+        // background: var(--background)
+        background: linear-gradient(135deg, rgba(74,222,128,0.10), rgba(29,123,219,0.08) 20%, var(--card-bg) 40%, var(--card-bg) 100%);
         margin: 0;
       }
       .accordion-content {
@@ -386,9 +401,10 @@ app.get('/', (req, res) => {
         border-color: var(--primary);
       }
       button, input[type="submit"] {
-        background: var(--primary);
+        // background: var(--primary);
+        background: linear-gradient(135deg, rgba(74,222,128,0.10), rgba(29,123,219,0.08) 20%, var(--card-bg) 40%, var(--card-bg) 100%);
         color: #fff;
-        border: none;
+        border: solid 1px var(--primary);
         border-radius: 6px;
         padding: 7px 16px;
         font-size: 0.97em;
@@ -398,7 +414,8 @@ app.get('/', (req, res) => {
         margin: 1px 2px;
       }
       button:hover, input[type="submit"]:hover {
-        background: var(--primary-hover);
+        opacity: 0.8;
+        background: linear-gradient(135deg, rgba(74,222,128,0.10), rgba(29,123,219,0.08) 20%, var(--card-bg) 40%, var(--card-bg) 100%);
       }
       input[type="file"] {
         margin-right: 8px;
@@ -465,17 +482,19 @@ app.get('/', (req, res) => {
       }
       #modal.show {
         display: block;
+        backdrop-filter: blur(8px);
       }
       #modal > div {
-        background: #fff;
+        background: var(--card-bg);
+        
         margin: 20vh auto;
         padding: 1em 2em;
         width: fit-content;
-        border: 1px solid #888;
+        border: 1px solid var(--primary);
         border-radius: 4px;
         text-align: center;
         font-size: 1.2em;
-        box-shadow: 0 2px 16px 0 rgba(0,0,0,0.08);
+        box-shadow: 0 2px 16px 0 rgba(0,0,0,0.1);
         animation: fadeIn 0.3s ease-out;
       }
       @keyframes fadeIn {
