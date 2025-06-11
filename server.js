@@ -229,7 +229,7 @@ app.get('/', (req, res) => {
         <button type="button" class="accordion-header">Sound Files</button>
         <div class="accordion-content">
           <form id="uploadForm" action="/upload-sound" method="post" enctype="multipart/form-data" style="margin-bottom:1em;">
-            <input type="file" name="soundFile" accept=".wav,.mp3" required>
+            <input type="file" class="styled-file-input" name="soundFile" accept=".wav,.mp3" required>
             <button type="submit">Upload Sound</button>
           </form>
           <table>
@@ -400,7 +400,7 @@ app.get('/', (req, res) => {
         outline: none;
         border-color: var(--primary);
       }
-      button, input[type="submit"] {
+      button, input[type="submit"], .styled-file-input::file-selector-button {
         // background: var(--primary);
         background: linear-gradient(135deg, rgba(74,222,128,0.10), rgba(29,123,219,0.08) 20%, var(--card-bg) 40%, var(--card-bg) 100%);
         color: #fff;
@@ -413,7 +413,7 @@ app.get('/', (req, res) => {
         transition: background 0.2s;
         margin: 1px 2px;
       }
-      button:hover, input[type="submit"]:hover {
+      button:hover, input[type="submit"]:hover, .styled-file-input::file-selector-button:hover {
         opacity: 0.8;
         background: linear-gradient(135deg, rgba(74,222,128,0.10), rgba(29,123,219,0.08) 20%, var(--card-bg) 40%, var(--card-bg) 100%);
       }
@@ -709,12 +709,12 @@ app.get('/', (req, res) => {
           events: ${JSON.stringify(bellSchedule.events || [])}
         };
         const breaks = ${JSON.stringify(bellSchedule.breaks || {
-          enabled: false,
-          fall: { start: '', end: '' },
-          winter: { start: '', end: '' },
-          spring: { start: '', end: '' },
-          summer: { start: '', end: '' }
-        })};
+    enabled: false,
+    fall: { start: '', end: '' },
+    winter: { start: '', end: '' },
+    spring: { start: '', end: '' },
+    summer: { start: '', end: '' }
+  })};
         const now = new Date();
         const nextBell = getNextBell(now, schedule, breaks);
         const bar = document.getElementById('status-bar');
